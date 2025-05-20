@@ -25,14 +25,12 @@ def searchWorkspace(keywords):
     client = WebClient(token=os.environ['USER_TOKEN'])
     try:
         for word in keywords:
-                queryResults = client.search_messages(query=word)
-                for match in queryResults:
-                    for match in queryResults.get("messages", {}).get("matches", []):  # Correct path
-                        messages.append([
-                            match.get("text", ""),
-                            match.get("channel", {}).get("name", "unknown"),
-                            match.get("user", "unknown")
-                        ])
+            queryResults = client.search_messages(query=f'"{word}"', sort='score', count=1, highlight=True)
+            for match in queryResults.get("messages", {}).get("matches", []):
+                # Extract just the text content
+                message_text = match.get("text", "")
+                if word in message_text:
+                    messages.append(message_text)
         
         return messages
 
@@ -66,7 +64,9 @@ def message (payload):
     if user_id != BOT_ID:
         if BOT_ID in textMessage or channel_type == 'group' or channel_type == "im":
             keywords = askAI("based on the following message generate only relevant search tags/keywords. max 2 keywords and dont go off track from given message. provide answer in a python list format: " + textMessage)
-            test = searchWorkspace(keywords)
+            matches = searchWorkspace(keywords)
+
+            answer = askAI("using the most relevant parts of the following information answer the question {textMessage} in the context of hack club. limit answers to 100 words" + str(matches))
 
             #response = askAI("based on the following unformatted information, answer {textMessage} within 100 words :" + str(test))
 
@@ -75,7 +75,7 @@ def message (payload):
             #response = requests.post('https://ai.hackclub.com/chat/completions', headers=headers, json=json_data)
             #print(response)
             #print(channel_id, channel_type)
-            client.chat_postMessage(channel=channel_id, text=str(test))
+            client.chat_postMessage(channel=channel_id, text=str(answer))
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)
