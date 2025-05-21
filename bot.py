@@ -27,9 +27,10 @@ def searchWorkspace(keywords):
     try:
         for word in keywordsList:
             response = client.search_messages(query=f'"{word}"', sort='score', highlight=True, count=5)
-            messages.append(response.get('messages', {}).get('matches', []))
-        
+            for match in response.get('messages', {}).get('matches', []):
+                messages.append(match.get("text", ''))
 
+        return messages
 
     except SlackApiError as e:
         return e.response['error']
