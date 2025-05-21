@@ -1,4 +1,4 @@
-import slack
+#import slack
 import os
 import requests
 from slack_sdk import WebClient
@@ -22,17 +22,14 @@ def askAI(message):
 
 def searchWorkspace(keywords):
     messages = []
+    keywordsList = keywords.split()
     client = WebClient(token=os.environ['USER_TOKEN'])
     try:
-        for word in keywords:
-            queryResults = client.search_messages(query=f'"{word}"', sort='score', count=1, highlight=True)
-            for match in queryResults.get("messages", {}).get("matches", []):
-                # Extract just the text content
-                message_text = match.get("text", "")
-                if word in message_text:
-                    messages.append(message_text)
+        for word in keywordsList:
+            response = client.search_messages(query=f'"{word}"', sort='score', highlight=True, count=5)
+            messages.append(response.get('messages', {}).get('matches', []))
         
-        return messages
+
 
     except SlackApiError as e:
         return e.response['error']
@@ -48,7 +45,7 @@ slack_event_adapter = SlackEventAdapter(
     app
 )
 
-client = slack.WebClient(token=os.environ['SLACK_TOKEN'])
+client = WebClient(token=os.environ['SLACK_TOKEN'])
 BOT_ID = client.api_call('auth.test')['user_id']
 
 @slack_event_adapter.on('message')
@@ -63,7 +60,7 @@ def message (payload):
 
     if user_id != BOT_ID:
         if BOT_ID in textMessage or channel_type == 'group' or channel_type == "im":
-            keywords = askAI("based on the following message generate only relevant search tags/keywords. max 2 keywords and dont go off track from given message. provide answer in a python list format: " + textMessage)
+            keywords = askAI("based on the following message generate only relevant search tags/keywords. max 2 keywords and dont use keywords not within the given message. provide answer, seperated by a space: " + textMessage)
             matches = searchWorkspace(keywords)
 
             answer = askAI("using the most relevant parts of the following information answer the question {textMessage} in the context of hack club. limit answers to 100 words" + str(matches))
