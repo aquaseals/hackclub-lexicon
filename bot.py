@@ -20,16 +20,26 @@ def askAI(message):
     responseMSG = response.json()["choices"][0]["message"]["content"]
     return responseMSG
 
-def searchWorkspace(keywords):
+def searchWorkspace(keyword, question):
+    print(keyword)
     messages = []
-    keywordsList = keywords.split()
     client = WebClient(token=os.environ['USER_TOKEN'])
     try:
-        for word in keywordsList:
-            response = client.search_messages(query=f'"{word}"', sort='score', highlight=True, count=5)
-            for match in response.get('messages', {}).get('matches', []):
-                messages.append(match.get("text", ''))
+        response = client.search_messages(query=f'"{keyword}"', sort='score', highlight=True, count=100)
+        for match in response.get('messages', {}).get('matches', []):
+            text = match.get("text", '')
+            time = match.get("ts", '')
+            userID = match.get("user", '')
+            channelID = match['channel']['id']
+            if keyword in text:
+                messages.append({
+                    "text": text,
+                    "time" : time,
+                    "userID" : userID,
+                    "channelID" : channelID,
+                })
 
+        print(askAI("based on this dictionary \n" + str(messages) + " reformat it to only contain the most relevant inofmration to answering this question " + question))
         return messages
 
     except SlackApiError as e:
@@ -61,8 +71,8 @@ def message (payload):
 
     if user_id != BOT_ID:
         if BOT_ID in textMessage or channel_type == 'group' or channel_type == "im":
-            keywords = askAI("based on the following message generate only relevant search tags/keywords. max 2 keywords and dont use keywords not within the given message. provide answer, seperated by a space: " + textMessage)
-            matches = searchWorkspace(keywords)
+            keywords = askAI("based on the following message generate only relevant search tags/keywords. max 1 keyword and dont use keywords not within the given message. provide answer: " + textMessage)
+            matches = searchWorkspace(keywords, textMessage)
 
             answer = askAI("using the most relevant parts of the following information answer the question {textMessage} in the context of hack club. limit answers to 100 words" + str(matches))
 
